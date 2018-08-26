@@ -4,12 +4,28 @@ import (
 	"log"
 	"strings"
 	"flag"
+	"sync"
+	"fmt"
+	"os"
 )
 
 var (
 	workers = flag.Int("workers", 8, "The number of workers to use")
 )
 
+func init() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, " Requester \n")
+		fmt.Fprintf(os.Stderr, "===========\n")
+		fmt.Fprintf(os.Stderr, "Simple website crawler that tries to follow every link that points\n")
+		fmt.Fprintf(os.Stderr, "back to the same domain.\n\n")
+
+		fmt.Fprintf(os.Stderr, "Usage:\n")
+		fmt.Fprintf(os.Stderr, "$ ./requester {OPTIONAL ARGUMENTS} http://first-url.com http://second-url.com \n\n")
+		fmt.Fprintf(os.Stderr, "Optional arguments:\n")
+		flag.PrintDefaults()
+	}
+}
 
 func main() {
 	flag.Parse()
