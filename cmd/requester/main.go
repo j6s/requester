@@ -31,6 +31,12 @@ func main() {
 	flag.Parse()
 	scanner := Scanner{}
 
+	// Print help if no URLs given
+	if (len(flag.Args()) == 0) {
+		flag.Usage()
+		return
+	}
+
 	// Initialize parser with command line arguments
 	for _, base := range(flag.Args()) {
 		if strings.Index(base, "http") == -1 {
