@@ -46,6 +46,17 @@ func main() {
 		scanner.Initialize(base)
 	}
 
+	// Execute the first couple of requests without being
+	// in a threadpool. This way the queue is filled and
+	// the threads will not starve each other out in the
+	// beginning. This is important since a worker will
+	// completely stop if there is nothing left to do.
+	for i := 0; i < 5; i++ {
+		if !scanner.Work() {
+			break;
+		}
+	}
+
 	// Setup thread pool
 	var wg sync.WaitGroup
 	for w := 1; w <= *workers; w++ {
