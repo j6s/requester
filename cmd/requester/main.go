@@ -11,6 +11,7 @@ import (
 
 var (
 	workers = flag.Int("workers", 8, "The number of workers to use")
+	listSuccess = flag.Bool("list-success", false, "If specified successful (200) requests will also be printed in the summary")
 )
 
 func init() {
@@ -65,7 +66,7 @@ func main() {
 	// Print stats
 	for status, requests := range(scanner.RequestsByStatus()) {
 		log.Printf("## %v: %d Requests", status, len(requests))
-		if status == "200 OK" {
+		if status == "200 OK" && !*listSuccess {
 			continue
 		}
 		for _, request := range(requests) {
