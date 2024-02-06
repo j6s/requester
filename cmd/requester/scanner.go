@@ -1,13 +1,13 @@
 package main
 
 type Scanner struct {
-	pool []*Request;
-	queue []*Request;
-	allowedHosts []string;
+	pool         []*Request
+	queue        []*Request
+	allowedHosts []string
 }
 
 func (scanner *Scanner) isHostAllowed(host string) bool {
-	for _, allowed := range(scanner.allowedHosts) {
+	for _, allowed := range scanner.allowedHosts {
 		if allowed == host {
 			return true
 		}
@@ -16,8 +16,8 @@ func (scanner *Scanner) isHostAllowed(host string) bool {
 }
 
 func (scanner *Scanner) isAlreadyInQueue(url string) bool {
-	for _, request := range(scanner.pool) {
-		if (request.url.String() == url) {
+	for _, request := range scanner.pool {
+		if request.url.String() == url {
 			return true
 		}
 	}
@@ -26,8 +26,8 @@ func (scanner *Scanner) isAlreadyInQueue(url string) bool {
 
 func (scanner *Scanner) isRequestAllowed(request Request) bool {
 	return (request.url.Scheme == "http" || request.url.Scheme == "https") &&
-	 scanner.isHostAllowed(request.url.Host) &&
-	!scanner.isAlreadyInQueue(request.url.String())
+		scanner.isHostAllowed(request.url.Host) &&
+		!scanner.isAlreadyInQueue(request.url.String())
 }
 
 // Checks if the given request is elegible for the queue
@@ -64,15 +64,16 @@ func (scanner *Scanner) Work() bool {
 
 	request := scanner.Pop()
 	request.Execute()
-	for _, child := range(request.references) {
+	for _, child := range request.references {
 		scanner.PushToQueue(child)
 	}
+
 	return true
 }
 
 func (scanner *Scanner) RequestsByStatus() map[string][]Request {
 	requests := make(map[string][]Request, 0)
-	for _, req := range(scanner.pool) {
+	for _, req := range scanner.pool {
 		_, exists := requests[req.response.Status]
 		if !exists {
 			requests[req.response.Status] = make([]Request, 0)
@@ -81,5 +82,9 @@ func (scanner *Scanner) RequestsByStatus() map[string][]Request {
 		requests[req.response.Status] = append(requests[req.response.Status], *req)
 	}
 
-	return requests;
+	return requests
+}
+
+func (scanner *Scanner) Requests() []*Request {
+	return scanner.pool
 }

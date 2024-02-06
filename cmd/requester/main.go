@@ -1,17 +1,19 @@
-package main;
+package main
 
 import (
-	"log"
-	"strings"
 	"flag"
-	"sync"
 	"fmt"
+	"log"
+	"net/url"
 	"os"
+	"strings"
+	"sync"
 )
 
 var (
-	workers = flag.Int("workers", 8, "The number of workers to use")
-	listSuccess = flag.Bool("list-success", false, "If specified successful (200) requests will also be printed in the summary")
+	workers       = flag.Int("workers", 8, "The number of workers to use")
+	listSuccess   = flag.Bool("list-success", false, "If specified successful (200) requests will also be printed in the summary")
+	diffToSitemap = flag.String("diff-to-sitemap", "", "If specified, a list of discovered URLs not in the specified sitemap will be shown.")
 )
 
 func init() {
@@ -33,17 +35,27 @@ func main() {
 	scanner := Scanner{}
 
 	// Print help if no URLs given
-	if (len(flag.Args()) == 0) {
+	if len(flag.Args()) == 0 {
 		flag.Usage()
 		return
 	}
 
 	// Initialize parser with command line arguments
-	for _, base := range(flag.Args()) {
+	for _, base := range flag.Args() {
 		if strings.Index(base, "http") == -1 {
 			base = "http://" + base
 		}
 		scanner.Initialize(base)
+	}
+
+	// Initialize sitemap
+	var urlsInSitemap []url.URL
+	var err error
+	if *diffToSitemap != "" {
+		urlsInSitemap, err = GetUrlsInSitemap(*diffToSitemap)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	// Setup thread pool
@@ -54,7 +66,7 @@ func main() {
 		// worker being used. This fills the queue enough
 		// for workers not to starve each other.
 		if !scanner.Work() {
-			break;
+			break
 		}
 
 		// Start worker.
@@ -73,13 +85,29 @@ func main() {
 	wg.Wait()
 
 	// Print stats
-	for status, requests := range(scanner.RequestsByStatus()) {
+	for status, requests := range scanner.RequestsByStatus() {
 		log.Printf("## %v: %d Requests", status, len(requests))
 		if status == "200 OK" && !*listSuccess {
 			continue
 		}
-		for _, request := range(requests) {
+		for _, request := range requests {
 			log.Printf("\t -> %s", request.url.String())
+		}
+	}
+
+	if len(urlsInSitemap) > 0 {
+		for _, request := range scanner.Requests() {
+			isInSitemap := false
+			for _, urlInSitemap := range urlsInSitemap {
+				if request.Matches(urlInSitemap) {
+					isInSitemap = true
+					break
+				}
+			}
+
+			if !isInSitemap {
+				fmt.Printf("\n- %s", request.url.String())
+			}
 		}
 	}
 }

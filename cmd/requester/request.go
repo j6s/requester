@@ -1,20 +1,20 @@
-package main;
+package main
 
 import (
+	"github.com/gookit/color"
+	"golang.org/x/net/html"
+	"io"
+	"log"
 	"net/http"
 	"net/url"
-	"log"
-	"github.com/gookit/color"
 	"strings"
-	"io"
-	"golang.org/x/net/html"
 )
 
 type Request struct {
-	url url.URL;
-	executed bool;
-	response http.Response;
-	references []Request;
+	url        url.URL
+	executed   bool
+	response   http.Response
+	references []Request
 }
 
 func (page *Request) Parse(incomingUrl string) {
@@ -22,11 +22,26 @@ func (page *Request) Parse(incomingUrl string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// URL Fragments (Everything after the hash) is ignored
+	uri.Fragment = ""
 	page.url = *uri
 }
 
-func (parent Request) Child(childUrl string) Request {
-	child := Request{}
+func (parent Request) Child(childUrl string) *Request {
+	if strings.Index(childUrl, "http") != 0 {
+		return nil
+	}
+
+	if childUrl[0] == '\'' || childUrl[0] == '"' {
+		childUrl = childUrl[1:]
+	}
+	lastIndex := len(childUrl) - 1
+	if childUrl[lastIndex] == '\'' || childUrl[lastIndex] == '"' {
+		childUrl = childUrl[:lastIndex]
+	}
+
+	child := &Request{}
 	child.Parse(childUrl)
 	if child.url.Host == "" {
 		child.url.Host = parent.url.Host
@@ -54,15 +69,20 @@ func (request *Request) Execute() {
 	}
 	log.Printf(c.Render("[%v] GET %v"), response.Status, request.url.String())
 
-
 	request.executed = true
-	if strings.Index(response.Header["Content-Type"][0], "text/html") != -1 {
-		for _, href := range(extractTagAttribute(response.Body, "a", "href")) {
-			request.references = append(request.references, request.Child(href))
+	if len(response.Header["Content-Type"]) > 0 && strings.Index(response.Header["Content-Type"][0], "text/html") != -1 {
+		for _, href := range extractTagAttribute(response.Body, "a", "href") {
+			child := request.Child(href)
+			if child != nil {
+				request.references = append(request.references, *child)
+			}
 		}
 	}
 }
 
+func (request *Request) Matches(comparisonUrl url.URL) bool {
+	return request.url.Host == comparisonUrl.Host && strings.Trim(request.url.Path, "/") == strings.Trim(comparisonUrl.Path, "/")
+}
 
 func extractTagAttribute(reader io.Reader, tagName string, attributeName string) []string {
 	attributes := make([]string, 0)
@@ -73,18 +93,18 @@ func extractTagAttribute(reader io.Reader, tagName string, attributeName string)
 		switch {
 		case token == html.ErrorToken:
 			// End of document
-			return attributes;
+			return attributes
 		case token == html.StartTagToken:
 			tag := tokenizer.Token()
 			if tag.Data == tagName {
 				for _, attr := range tag.Attr {
 					if attr.Key == attributeName {
-						attributes = append(attributes, attr.Val)
+						attributes = append(attributes, strings.TrimSpace(attr.Val))
 					}
 				}
 			}
 		}
 	}
 
-	return attributes;
+	return attributes
 }
